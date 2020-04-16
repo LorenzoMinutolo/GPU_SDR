@@ -216,3 +216,19 @@ The commands in this guide have been tested on Ubuntu 18.04. The description of 
   $ sudo ./server
   \endcode
   If the server hangs on \code{.sh}Looking for USRP...\endcode don't worry: this only means you have to configure your network or usb device. If you are using PCIe cable refer to the apposite section of this documentation.
+
+
+Troubleshooting issues with Nvidia/Cuda
+---------------------------------------
+
+The USRP server and data taking system is very resource intensive. The system makes use of an Nvidia graphics card to do the computations, and it communicates with the graphics card through this platform called Cuda. If Cuda is installed with a run file, which is a static, easy way to install things, then it is possible for subsequent Ubuntu updates to clash with the version of Cuda that is associated with the run file, leading to crashes, frozen desktops, and other graphics related issues. The easiest and most obvious fix is to uninstall and reinstall the Cuda drivers. Also, stopping automatic updates of Ubuntu is a good idea.
+
+1. Uninstalling Cuda
+  The best way to uninstall Cuda is through the recovery menu. Press and hold shift while the computer is booting. This will show you the grub menu. Select the first recovery mode entry that you find. Use arrow keys and enter to enable network access (this may take a while, ~10 minutes). Then go to root, using arrow keys and enter. Now you will be in the root console. Purge Nvidia and Cuda files: '''sudo apt-get purge nvidia*''' and '''sudo apt-get purge cuda*'''. 
+  In the grub menu, you can choose previous kernels (versions) of Ubuntu, but Lorenzo has not had luck with this when troubleshooting issues, so he does not recommend doing that.
+2. Reinstalling Cuda
+  There's a cooler way than run files to install things in Ubuntu that will automatically update the software/packages and that's by using sudo apt-get. This is called installation through the "Package Manager." The whole procedure to do this for Cuda is listed here: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#ubuntu-installation. Lorenzo says that this is what we did to reinstall the Cuda drivers, but I'm not as confident that we did everything here line for line. We will assume that this is how Cuda is installed on the computer, i.e. through the Package Manager, i.e. it updates automatically with the updates to Ubuntu.
+  There may also be an incompatibility with compiling the server after using the Package Manager installation on the master branch of the Git repository. It's something to do with the location of the cmake files. One should talk to Lorenzo directly about this.
+ 3. Stop updating Ubuntu
+  Theoretically, if Cuda was installed with the package manager, then it should be compatible with regular update from Ubuntu. Just in case, it is still a good idea to halt updates from Ubuntu when your data taking system has reached a stable version with whatever kernel of Ubuntu it is using. I just followed this link to remove the automatic updates of Ubuntu, under the guidance of Lorenzo: https://linuxconfig.org/disable-automatic-updates-on-ubuntu-18-04-bionic-beaver-linux. Basically, you modify some internal script in the /etc/apt directory.
+
