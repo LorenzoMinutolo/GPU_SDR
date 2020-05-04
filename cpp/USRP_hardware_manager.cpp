@@ -952,11 +952,13 @@ std::string hardware_manager::apply_antenna_config(param *parameters, param *old
 															uhd::tune_request_t tune_request(parameters->tone);
 															tune_request.args = uhd::device_addr_t("mode_n=integer");
 															main_usrp->set_rx_freq(tune_request,chan);
-
+															main_usrp->set_rx_lo_export_enabled(true, "lo1", chan);
+															main_usrp->get_device()->get_tree()->access<bool>("mboards/0/dboards/A/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_1/export").set(true);
 		                        }else if(parameters->tuning_mode == 4){
 															uhd::tune_request_t tune_request(parameters->tone);
-	                            main_usrp->set_tx_freq(tune_request,chan);
-
+	                            main_usrp->set_rx_freq(tune_request,chan);
+															main_usrp->set_rx_lo_export_enabled(true, "lo1", chan);
+															main_usrp->get_device()->get_tree()->access<bool>("mboards/0/dboards/A/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_1/export").set(true);
 		                        }
 
                             old_parameters->tone = main_usrp->get_rx_freq(chan);
@@ -998,12 +1000,14 @@ std::string hardware_manager::apply_antenna_config(param *parameters, param *old
                         }else if(parameters->tuning_mode == 3){
 													uhd::tune_request_t tune_request(parameters->tone);
 													tune_request.args = uhd::device_addr_t("mode_n=integer");
-													main_usrp->set_rx_freq(tune_request,chan);
-
+													main_usrp->set_tx_freq(tune_request,chan);
+													main_usrp->set_tx_lo_export_enabled(true, "lo1", chan);
+													main_usrp->get_device()->get_tree()->access<bool>("mboards/0/dboards/A/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_1/export").set(true);
                         }else if(parameters->tuning_mode == 4){
 													uhd::tune_request_t tune_request(parameters->tone);
 													main_usrp->set_tx_freq(tune_request,chan);
-
+													main_usrp->set_tx_lo_export_enabled(true, "lo1", chan);
+													main_usrp->get_device()->get_tree()->access<bool>("mboards/0/dboards/A/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_1/export").set(true);
                         }
                         old_parameters->tone = main_usrp->get_tx_freq(chan);
                     }else{
