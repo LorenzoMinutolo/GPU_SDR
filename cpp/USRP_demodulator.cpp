@@ -649,7 +649,7 @@ int RX_buffer_demodulator::process_pfb_spec(float2** __restrict__ input_buffer, 
 }
 //clean up the pfb allocations
 void RX_buffer_demodulator::close_pfb(){
-    cublasDestroy(handle);
+
     cufftDestroy(plan);
     cudaStreamDestroy(internal_stream);
     cudaFree(d_params);
@@ -661,13 +661,13 @@ void RX_buffer_demodulator::close_pfb(){
     if(decimator_active){
         delete(pfb_decim_helper);
         cudaFree(decim_output);
+        //cublasDestroy(handle); For now a custom kenel takes care of it
     }
 }
 
 //clean up the pfb full spectrum
 void RX_buffer_demodulator::close_pfb_spec(){
-  print_debug("Close demodulator",0);
-    cublasDestroy(handle);
+    print_debug("closing",0);
     cufftDestroy(plan);
     cudaStreamDestroy(internal_stream);
     cudaFree(d_params);
@@ -678,8 +678,10 @@ void RX_buffer_demodulator::close_pfb_spec(){
     if(decimator_active){
         delete(pfb_decim_helper);
         cudaFree(decim_output);
+        //cublasDestroy(handle); For now a custom kenel takes care of it
+        //print_debug("Close demodulator",0);
     }
-    print_debug("Close demodulator",1);
+    print_debug("Close demodulator finalized",0);
 }
 
 //clean up the chirp demod allocation
