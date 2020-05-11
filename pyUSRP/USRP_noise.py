@@ -383,7 +383,7 @@ def dual_get_noise(tones_A, tones_B, measure_t, rate, decimation = None, amplitu
     return output_filename
 
 def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None, RF = None, tx_gain = 0, output_filename = None, Front_end = None,
-              Device = None, delay = None, pf_average = 4, mode = "DIRECT", trigger = None, repeat_measure = False, subfolder = None, **kwargs):
+              Device = None, delay = None, pf_average = 4, mode = "DIRECT", trigger = None, repeat_measure = False, subfolder = None, shared_lo = False, **kwargs):
     '''
     Perform a noise acquisition using fixed tone technique.
 
@@ -402,7 +402,8 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
         - mode: noise acquisition kernels. DIRECT uses direct demodulation PFB use the polyphase filter bank technique. Note that PF average will refer to something slightly different in DIRECT mode (moving average ratio: 1 has no overlap).
         - trigger: class used for triggering. (See trigger section for more info). Default is no trigger.
         - repeat_measure: when true, in case of an error, repeat the measure and delete the old file. Default is False.
-        - subfolder: subfolder string where to create the file. The path MUST exist or the measure will not happen. Default is None: write in the current folder
+        - subfolder: subfolder string where to create the file. The path MUST exist or the measure will not happen. Default is None: write in the current folder.
+        - shared_lo: Enable the shared TX/RX LO. Works only on platforms with export/import LO phyusical ports
         - kwargs:
             * verbose: additional prints. Default is False.
             * push_queue: queue for post writing samples.
@@ -511,6 +512,21 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
 
     print_debug("Using a delay of %d ns" % int(delay*1e9))
 
+    # The LO codes are:
+    #     0 integer
+    #     1 fractional
+    #     2 external
+    #     3 integer Export
+    #     4 fractional export
+    if shared_lo:
+        print_debug("Sharing LO signal")
+        rx_tuning_mode = 3
+        tx_tuning_mode = 2
+    else:
+
+        tx_tuning_mode = 0
+        rx_tuning_mode = 0
+
     if mode == "PFB":
         # Calculate the number of channel needed
         if len(tones)>1:
@@ -556,7 +572,7 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
         noise_command.set(TX_frontend, "samples", number_of_samples)
         noise_command.set(TX_frontend, "rate", rate)
         noise_command.set(TX_frontend, "bw", 1e9)
-        #noise_command.set(TX_frontend, 'tuning_mode', 0)
+        noise_command.set(TX_frontend, 'tuning_mode', tx_tuning_mode)
         noise_command.set(TX_frontend, "wave_type", ["TONES" for x in tones])
         noise_command.set(TX_frontend, "ampl", amplitudes)
         noise_command.set(TX_frontend, "freq", tones)
@@ -566,7 +582,7 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
         noise_command.set(TX_frontend, "fft_tones", 100)
 
         noise_command.set(RX_frontend, "mode", "RX")
-        #noise_command.set(RX_frontend, 'tuning_mode', 0)
+        noise_command.set(RX_frontend, 'tuning_mode', rx_tuning_mode)
         noise_command.set(RX_frontend, "buffer_len", buffer_len)
         noise_command.set(RX_frontend, "gain", 0)
         noise_command.set(RX_frontend, "delay", 1 + delay)
@@ -612,7 +628,7 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
         noise_command.set(TX_frontend, "samples", number_of_samples)
         noise_command.set(TX_frontend, "rate", rate)
         noise_command.set(TX_frontend, "bw", 1e9)
-        noise_command.set(TX_frontend, 'tuning_mode', 0)
+        noise_command.set(TX_frontend, 'tuning_mode', tx_tuning_mode)
         noise_command.set(TX_frontend, "wave_type", ["TONES" for x in tones])
         noise_command.set(TX_frontend, "ampl", amplitudes)
         noise_command.set(TX_frontend, "freq", tones)
@@ -622,7 +638,7 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
         noise_command.set(TX_frontend, "fft_tones", 100)
 
         noise_command.set(RX_frontend, "mode", "RX")
-        noise_command.set(RX_frontend, 'tuning_mode', 0)
+        noise_command.set(RX_frontend, 'tuning_mode', rx_tuning_mode)
         noise_command.set(RX_frontend, "buffer_len", buffer_len)
         noise_command.set(RX_frontend, "gain", 0)
         noise_command.set(RX_frontend, "delay", 1 + delay)

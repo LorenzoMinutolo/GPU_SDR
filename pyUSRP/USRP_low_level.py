@@ -45,7 +45,7 @@ N_CORES = 10
 parallel_backend = 'multiprocessing'
 
 # usrp output power at 0 tx gain
-USRP_power = +20
+USRP_power = 10-70
 
 # USRP rates that does not cause additional CIC filtering
 USRP_accepted_rates = [int(1e6), int(2e6), int(5e6), int(1e7), int(2e7), int(5e7), int(1e8), int(2e8)]
@@ -117,7 +117,7 @@ CLIENT_STATUS["END_OF_MEASURE"] = False
 
 # USRP calibration for float units in Vpp
 CURRENT_CALIBRATION = manager.dict()
-CURRENT_CALIBRATION['tmp_calib'] = 38.557682
+CURRENT_CALIBRATION['tmp_calib'] =374881.696772
 #USRP_calibration = 0.317
 
 # Server relted info

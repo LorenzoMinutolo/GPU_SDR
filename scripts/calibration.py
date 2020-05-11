@@ -173,7 +173,7 @@ if __name__ == "__main__":
     for i in range(int(len(select_vector)*0.2)):
             select_vector[i] = 0
             select_vector[-i] = 0
-
+    select_vector = np.asarray(select_vector, dtype=bool)
     print(select_vector)
     current_level = u.linear2db(np.abs(np.mean(S21[select_vector])))
     difference = -(current_level + args.loopback)

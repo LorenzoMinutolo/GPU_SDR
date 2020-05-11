@@ -12,7 +12,7 @@ except ImportError:
 
 import argparse
 
-def run(rate,freq,front_end, tones, lapse, decimation, gain, vna, mode, pf, trigger, amplitudes):
+def run(rate,freq,front_end, tones, lapse, decimation, gain, vna, mode, pf, trigger, amplitudes, shared_LO):
 
     if trigger is not None:
         try:
@@ -24,11 +24,12 @@ def run(rate,freq,front_end, tones, lapse, decimation, gain, vna, mode, pf, trig
             u.print_error("Cannot find the trigger \'%s\'. Is it implemented in the USRP_triggers module?"%trigger)
             return ""
 
-
+    if shared_LO is None:
+        shared_LO = False
     #trigger = u.trigger_template(rate = rate/decimation)
     noise_filename = u.get_tones_noise(tones, measure_t = lapse, rate = rate, decimation = decimation, amplitudes = amplitudes,
                               RF = freq, output_filename = None, Front_end = front_end,Device = None, delay = None,
-                              pf_average = pf, tx_gain = gain, mode = mode, trigger = trigger)
+                              pf_average = pf, tx_gain = gain, mode = mode, trigger = trigger, shared_lo = shared_LO)
     if vna is not None:
         u.copy_resonator_group(vna, noise_filename)
 
@@ -37,7 +38,7 @@ def run(rate,freq,front_end, tones, lapse, decimation, gain, vna, mode, pf, trig
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Test the basic VNA functionality.')
+    parser = argparse.ArgumentParser(description='Test the basic Noise acquisition functionality')
 
     parser.add_argument('--folder', '-fn', help='Name of the folder in which the data will be stored. Move to this folder before everything', type=str, default = "data")
     parser.add_argument('--freq', '-f', help='LO frequency in MHz', type=float, default= 300)
@@ -56,6 +57,7 @@ if __name__ == "__main__":
     parser.add_argument('--DAC_division', '-dd', help='Divide the DAC to use only 1./this for each tone. Must be >= len(tones).', type=int, default=None)
     parser.add_argument('--delay', '-dy', help='Optional delay file where to souce delay information', type=str)
     parser.add_argument('--addr', '-addr', help='Addredd of the server', type=str, default = None)
+    parser.add_argument('--shared_lo', '-slo', help='Enable the shared TX/RX LO. Works only on platforms with export/import LO phyusical ports', action='store_true')
 
 
     args = parser.parse_args()
@@ -119,6 +121,7 @@ if __name__ == "__main__":
 
     f = run(rate = args.rate*1e6, freq = rf_freq, front_end = args.frontend,
             tones = np.asarray(tones), lapse = args.time, decimation = args.decimation,
-            gain = args.gain, vna= args.VNA, mode = args.mode, pf = args.pf, trigger = args.trigger, amplitudes=amplitudes)
+            gain = args.gain, vna= args.VNA, mode = args.mode, pf = args.pf, trigger = args.trigger, amplitudes=amplitudes,
+            shared_LO = args.shared_lo)
 
     # Data analysis and plotting will be in an other python script
