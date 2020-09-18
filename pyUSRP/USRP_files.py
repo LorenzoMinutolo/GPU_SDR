@@ -1138,6 +1138,8 @@ def Param_to_H5(H5fp, parameters_class, trigger = None, **kwargs):
 
             for param_name in parameters_class.parameters[ant_name]:
                 rx_group.attrs.create(name=param_name, data=parameters_class.parameters[ant_name][param_name])
+                
+            H5fp.swmr_mode = True
 
         return rx_names
 
