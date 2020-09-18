@@ -154,3 +154,141 @@ class trigger_example(object):
             self.signal_accumulator = np.std(data)
             metadata['length'] = 0
             return [], metadata
+        
+        
+class infn(object):
+    def __init__(self,rate,threshold,slice_len,noise_trigger=0,mode="pulse",decimation=100,thresholdmode="mag",**kwargs):
+        self.rate=rate # realrate
+        self.threshold =threshold
+        self.stored_data = []
+        self.bounds = []
+        self.nglitch = []
+        self.glitch_indices = [] 
+        self.samples_per_packet = []
+        self.noise_trigger=noise_trigger
+        self.mode=mode #triggerd on pulse/noise or both
+        self.slice_len=slice_len
+        self.decimation=decimation
+        self.start_flag=True
+        self.buff_data=[]
+        self.buff_time=0.2 #length of each buff, in second
+        self.main_buff=[]
+        self.buff_full=False
+        self.countbuff=0
+        self.realpoint=0
+        self.numpoint=int(self.slice_len*self.rate) #num of points be recorded
+        self.thresholdmode=thresholdmode
+        if thresholdmode=="rotate":
+            try:
+               self.alpha=kwargs['alpha']
+            except KeyError:
+               print("Need alpha for rotate")
+    def buff(self,data,metadata):
+        #merge small packets into a big one
+        self.noise_mark=[] 
+        self.glitch_chan=[]
+        self.timestamp=[]
+        self.tglitch=[]
+        data=np.reshape(data.T,-1)
+        self.buff_data=np.append(self.buff_data,data)
+        buff_data=self.buff_data
+        self.countbuff+=1
+        lenbuff=len(self.buff_data)        
+        if lenbuff>self.rate*self.buff_time*metadata['channels']:
+            self.buff_full=True
+            self.main_buff=self.buff_data
+            self.buff_data=[]
+        return self.buff_full
+    def trigger(self,metadata):
+        def diff(current,stddev): #return the glitchs position above the threshold
+            y=1
+            hit_diff=np.ediff1d(current)
+            jump=np.where(np.abs(hit_diff)>stddev*self.threshold[ch])
+            while (y<len(jump)):
+                if jump[y]-jump[y-1]<self.numpoint:
+                    jump=np.delete(jump, y)
+                    y-=1
+                y+=1
+            hit_indices=jump
+            return hit_indices
+        n_chan=metadata['channels']
+        self.stored_data=np.reshape(self.main_buff,(-1,n_chan)).T
+        self.buff_full=False
+        if self.start_flag==True:
+            cutoff=int(self.rate*0.05) ## cutoff the beginning of data where contains noise
+            self.stored_data=self.stored_data[:,cutoff:]
+            self.start_flag=False
+        n_samples = self.stored_data.shape[1] ##The number of samples per channel in the packet
+        srate = self.rate
+        before=int(self.numpoint*0.2)
+        after=int(self.numpoint*0.8)
+        res=np.zeros(0)        
+        
+        for x in range(0, n_chan):
+            hits = np.zeros(n_samples, dtype=bool)
+            ch = int(x)
+            if self.thresholdmode=="mag":
+                current = np.abs(self.stored_data[ch])
+            elif self.thresholdmode=="pha":
+                current = np.angel(self.stored_data[ch])
+            elif self.thresholdmode=="rotate":
+                print("rotate angle is "+str(self.alpha[ch]))
+                current =self.stored_data[ch]*(np.cos(self.alpha[ch])+1j*np.sin(self.alpha[ch]))
+                current=current.real
+                #fired on rotated angle, but original data will be recorded
+            hit_noise=[]
+            hit_indices=[]
+            if self.mode=="noise" or self.mode=="both":
+                noise_step=int(self.noise_trigger*srate)
+                hit_noise=np.arange(noise_step,len(current),noise_step)
+            if self.mode=="pulse" or self.mode=="both":
+                med = np.median(current)
+                stddev = np.std(current)
+                hit_indices=diff(current,stddev)              
+            hit_indices=np.append(hit_noise,hit_indices)
+            hit_indices=np.sort(hit_indices)
+            diff_noise_pulse=np.ediff1d(hit_indices)
+            np_close=np.where(diff_noise_pulse<self.numpoint)[0]
+            count_chan=0
+            n_glitch = len(hit_indices)
+            n_noise=len(hit_noise)
+            n_pulse=n_glitch-n_noise
+            print (str(n_pulse)+" pulse and "+str(n_noise)+" noise detected in chanl "+str(ch)+".")
+            for z in range(0, len(hit_indices)): #classify noise and pulse                
+                i = hit_indices[z]                
+                if i>=before and i<n_samples-after:
+                    time_stamp=np.true_divide(i+self.realpoint, srate)                    
+                    chopped =self.stored_data[ch,(i-before):(i+after)]                                 
+                    if self.mode=="pulse":
+                       self.noise_mark.append(0) 
+                       self.glitch_chan.append(ch) 
+                    else:
+                      if int(i/noise_step)*noise_step==i: # when the time match the noise trigger
+                           if z>0:
+                               if i-hit_indices[z-1]<self.numpoint: # when the pulse drop into noise window                                   
+                                   n_glitch = n_glitch - 1                                   
+                                   continue
+                               else:
+                                   self.noise_mark.append(1)
+                                   self.glitch_chan.append(ch) 
+                           else:
+                               self.noise_mark.append(1)
+                               self.glitch_chan.append(ch) 
+                      else:
+                          self.noise_mark.append(0)
+                          self.glitch_chan.append(ch) 
+                    self.timestamp.append(time_stamp)
+                    res=np.append(res,chopped)
+                    self.nglitch.append(count_chan)
+                    count_chan += 1
+                else:
+                    pass
+                    print ("Glitch index", i, "not in range.")
+                    n_glitch = n_glitch - 1                
+            self.tglitch.append(n_glitch)
+        glitch_total=sum(self.tglitch)
+        res=res.reshape([int(glitch_total),self.numpoint]).T
+        metadata['channels']=glitch_total
+        metadata['length']=int(self.numpoint*glitch_total)
+        self.realpoint+=n_samples
+        return res,metadata
