@@ -237,7 +237,7 @@ def Packets_to_file(parameters, timeout=None, filename=None, dpc_expected=None, 
             h5file.close()
         except IOError:
             try:
-                h5file = h5py.File(filename + ".h5", 'w')
+                h5file = h5py.File(filename + ".h5", 'w',libver='latest')
                 return h5file
             except IOError as msg:
                 print_error("Cannot create the file " + filename + ".h5:")
