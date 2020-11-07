@@ -518,7 +518,7 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
     #     2 external
     #     3 integer Export
     #     4 fractional export
-    if shared_lo:
+    if shared_lo is True:
         print_debug("Sharing LO signal")
         rx_tuning_mode = 3
         tx_tuning_mode = 2
