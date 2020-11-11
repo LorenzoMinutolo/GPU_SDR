@@ -216,6 +216,13 @@ void Thread_Prioriry(boost::thread& Thread, int priority, int affinity){
 
 }
 
+void set_this_thread_perf(size_t core){
+  const std::vector< size_t > cpu_affinity = {core};
+  uhd::set_thread_priority();
+  uhd::set_thread_affinity(cpu_affinity);
+  print_debug("Setting thread priority to maximum and attaching to core: ", core);
+}
+
 void SetThreadName(boost::thread* thread, const char* threadName){
    auto handle = thread->native_handle();
    pthread_setname_np(handle,threadName);

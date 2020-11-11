@@ -242,6 +242,10 @@ typedef boost::lockfree::queue< int, boost::lockfree::fixed_sized<(bool)true>> e
 // One of the main causes of error in the system is the RX/TX processes core switching. The switch instroduces a delay that is not well tollerated by the real-time tasks.
 void Thread_Prioriry(boost::thread& Thread, int priority, int affinity);
 
+//! @brief Method for scheduling thread priority and core affinity that relies on UHD functions.
+// This should be called from within the thread and should be platform independent.
+void set_this_thread_perf(size_t core);
+
 //! @brief Set the thread name to the OS
 //! Under linux one can use htop or ps to display wich thread is running and how much memory/ CPU resources are being used.
 //! This function set the displayed name of the thread. It does not work with htop.
