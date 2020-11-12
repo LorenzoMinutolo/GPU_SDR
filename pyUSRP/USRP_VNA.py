@@ -994,9 +994,9 @@ def plot_VNA(filenames, backend = "matplotlib", output_filename = None, unwrap_p
                 other_color = 'red'
             else:
                 other_color = 'black'
-
-            ax[0].plot(freq_axes[i], mag, color = color, label = label)
-            ax[1].plot(freq_axes[i], phase, color = color)
+            min_plot_len = np.min([len(mag),len(phase),len(freq_axes[i])])
+            ax[0].plot(freq_axes[i][0:min_plot_len], mag[0:min_plot_len], color = color, label = label)
+            ax[1].plot(freq_axes[i][0:min_plot_len], phase[0:min_plot_len], color = color)
 
             # if there are initialized resoantor in the file...
             if len(reso_axes[i]) > 0:

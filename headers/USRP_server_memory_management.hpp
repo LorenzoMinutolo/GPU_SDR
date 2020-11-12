@@ -122,10 +122,10 @@ class preallocator{
             allocated = new  boost::lockfree::queue< intptr_t ,boost::lockfree::fixed_sized<(bool)true>> (init_pipe_size);
             deallocated = new  boost::lockfree::queue< intptr_t ,boost::lockfree::fixed_sized<(bool)true>>(init_pipe_size);
             filler = new boost::thread(boost::bind(&preallocator::queue_filler,this));
-            if(core>-1)Thread_Prioriry(*filler, 40, core);
+            //if(core>-1)Thread_Prioriry(*filler, 40, core);
             deallocator = new boost::thread(boost::bind(&preallocator::queue_deallocator,this));
             //if(core>-1)Thread_Prioriry(*deallocator, 40, core);
-            while(counter<pipe_size-1)boost::this_thread::sleep_for(boost::chrono::milliseconds{200});
+            while(counter<pipe_size-1)boost::this_thread::sleep_for(boost::chrono::milliseconds{50});
 
         }
 
@@ -134,7 +134,7 @@ class preallocator{
 
             intptr_t thatvalue_other;
 
-            while(not allocated->pop(thatvalue_other))boost::this_thread::sleep_for(boost::chrono::microseconds{10});
+            while(not allocated->pop(thatvalue_other))boost::this_thread::sleep_for(boost::chrono::microseconds{5});
 
             counter--;
             return reinterpret_cast<vector_type*>(thatvalue_other);
@@ -143,7 +143,7 @@ class preallocator{
 
         void trash(vector_type* trash_vector){
 
-            while(not deallocated->push(reinterpret_cast<intptr_t>(trash_vector)))boost::this_thread::sleep_for(boost::chrono::microseconds{1});
+            while(not deallocated->push(reinterpret_cast<intptr_t>(trash_vector)))boost::this_thread::sleep_for(boost::chrono::nanoseconds{50});
             counter++;
 
         }
@@ -174,6 +174,9 @@ class preallocator{
 
         void queue_deallocator(){
             set_this_thread_name("queue_deallocator");
+            pid_t pid = getpid();
+
+            std::cout<<"deallocator pid: " << pid << std::endl;
             bool active = (bool)true;
             while(active){
                 try{
@@ -187,7 +190,7 @@ class preallocator{
                             err_counter++;
                             boost::this_thread::sleep_for(boost::chrono::microseconds{wait_on_full});
                         }
-                        boost::this_thread::sleep_for(boost::chrono::milliseconds{3});
+                        boost::this_thread::sleep_for(boost::chrono::milliseconds{2});
 
 
                         counter++;
@@ -201,7 +204,7 @@ class preallocator{
                 if(deallocated->pop(trash_vector)){
                     cudaFreeHost(static_cast<vector_type*>(reinterpret_cast<void*>(trash_vector)));
                 }else{
-                    boost::this_thread::sleep_for(boost::chrono::milliseconds{3});
+                    boost::this_thread::sleep_for(boost::chrono::milliseconds{2});
                 }
 
             }

@@ -421,7 +421,7 @@ preallocator<float2>* memory                //if the thread is transmitting a bu
                     'A'
                 ));
             SetThreadName(A_tx_thread, "A_tx_thread");
-            Thread_Prioriry(*A_tx_thread, 99, thread_op);
+            //Thread_Prioriry(*A_tx_thread, 99, thread_op);
 
             }else if(front_end=='B'){
                 B_tx_thread = new boost::thread(boost::bind(&hardware_manager::single_tx_thread,this,
@@ -434,16 +434,16 @@ preallocator<float2>* memory                //if the thread is transmitting a bu
                 ));
 
             SetThreadName(B_tx_thread, "B_tx_thread");
-            Thread_Prioriry(*B_tx_thread, 99, thread_op);
+            //Thread_Prioriry(*B_tx_thread, 99, thread_op);
 
             }
         }else{
             if(front_end=='A'){
                 A_tx_thread = new boost::thread(boost::bind(&hardware_manager::software_tx_thread,this,current_settings,memory,A_TX_queue,A_sw_loop_queue,'A'));
-                Thread_Prioriry(*A_tx_thread, 99, thread_op);
+                //Thread_Prioriry(*A_tx_thread, 99, thread_op);
             }else if(front_end=='B'){
                 B_tx_thread = new boost::thread(boost::bind(&hardware_manager::software_tx_thread,this,current_settings,memory,B_TX_queue,B_sw_loop_queue,'B'));
-                Thread_Prioriry(*B_tx_thread, 99, thread_op);
+                //Thread_Prioriry(*B_tx_thread, 99, thread_op);
             }
         }
     }else{
@@ -490,7 +490,7 @@ void hardware_manager::start_rx(
                     'A',
 										main_usrp
 									));
-                Thread_Prioriry(*A_rx_thread, 99, thread_op);
+                //Thread_Prioriry(*A_rx_thread, 99, thread_op);
                 SetThreadName(A_rx_thread, "A_rx_thread");
             }else if(front_end=='B'){
                 B_rx_thread = new boost::thread(boost::bind(&hardware_manager::single_rx_thread,this,
@@ -502,17 +502,17 @@ void hardware_manager::start_rx(
                     'B',
 										main_usrp
 									));
-                Thread_Prioriry(*B_rx_thread, 99, thread_op);
+                //Thread_Prioriry(*B_rx_thread, 99, thread_op);
                 SetThreadName(B_rx_thread, "B_rx_thread");
             }
         }else{
             if(front_end=='A'){
                 A_rx_thread = new boost::thread(boost::bind(&hardware_manager::software_rx_thread,this,current_settings,memory,A_RX_queue,A_sw_loop_queue,'A'));
-                Thread_Prioriry(*A_rx_thread, 99, thread_op);
+                //Thread_Prioriry(*A_rx_thread, 99, thread_op);
                 SetThreadName(A_rx_thread, "A_rx_thread");
             }else if(front_end=='B'){
                 B_rx_thread = new boost::thread(boost::bind(&hardware_manager::software_rx_thread,this,current_settings,memory,B_RX_queue,B_sw_loop_queue,'B'));
-                Thread_Prioriry(*B_rx_thread, 99, thread_op);
+                //Thread_Prioriry(*B_rx_thread, 99, thread_op);
                 SetThreadName(B_rx_thread, "B_rx_thread");
             }
         }
@@ -1303,6 +1303,7 @@ void hardware_manager::single_tx_thread(
 ){
 
 		std::stringstream thread_name;
+		set_this_thread_perf(1);
     thread_name << "Hardware tx thread "<<front_end;
     set_this_thread_name(thread_name.str());
 		BOOST_LOG_TRIVIAL(debug) << "EVENT_START:24;Thread started";
@@ -1363,7 +1364,7 @@ void hardware_manager::single_tx_thread(
 
             //handle = std::async(std::launch::async, get_buffer_ready, TX_queue, buffer_len_tx, cache);
 
-            while(not TX_queue->pop(tx_buffer))std::this_thread::sleep_for(std::chrono::nanoseconds(500));
+            while(not TX_queue->pop(tx_buffer))std::this_thread::sleep_for(std::chrono::nanoseconds(50));
 
             sent_samp += tx_stream->send(tx_buffer, buffer_len_tx, metadata_tx, timeout);
 						timeout = 0.1f;
@@ -1411,6 +1412,7 @@ void hardware_manager::single_tx_thread(
 
 //ment to be in a thread. receive messages asyncronously on metadata
 void hardware_manager::async_stream(uhd::tx_streamer::sptr &tx_stream, char fornt_end){
+	  set_this_thread_perf(4);
     bool parent_process_active = false;
     bool active = true;
     uhd::async_metadata_t async_md;
@@ -1530,6 +1532,7 @@ void hardware_manager::single_rx_thread(
 ){
 
 	std::stringstream thread_name;
+	set_this_thread_perf(0);
   thread_name << "Hardware rx thread  "<<front_end;
   set_this_thread_name(thread_name.str());
 	BOOST_LOG_TRIVIAL(debug) << "EVENT_START:31; Thread started";

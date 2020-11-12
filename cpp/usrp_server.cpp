@@ -17,7 +17,7 @@ namespace po = boost::program_options;
 
 
 int main(int argc, char **argv){
-    uhd::set_thread_priority_safe(1.);
+  set_this_thread_perf(6);
 	init_logger();
 	set_this_thread_name("Main");
 	logging::add_common_attributes();
@@ -74,7 +74,6 @@ int main(int argc, char **argv){
     json_res = new std::string(format_usrp_info(&usrp, 0));
     async.send_async(json_res);
 
-
     while(active){
         BOOST_LOG_TRIVIAL(info) << "EVENT_START:92; Main loop";
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -91,6 +90,7 @@ int main(int argc, char **argv){
                 thread_manager.set(&global_parameters);
                 thread_manager.start(&global_parameters);
                 bool done = false;
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 std::cout<< "DAq in progress:" <<std::flush;
                 while(not done){
                     done = thread_manager.stop();
