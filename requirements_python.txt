@@ -1,0 +1,8 @@
+numpy
+scipy
+joblib
+colorlover
+matplotlib
+peakutils
+progressbar2
+h5py
