@@ -1319,7 +1319,7 @@ void hardware_manager::single_tx_thread(
 			size_t total_sent_samples = 0;
 			double seconds_in_future = 1.0+current_settings->delay;
 			double time_to_send = seconds_in_future;
-			size_t single_chirp_samples = current_settings->chirp_t[0] * current_settings->rate;
+			size_t single_chirp_samples = current_settings->burst_on * current_settings->rate;
 			BOOST_LOG_TRIVIAL(info) <<"EVENT_START:27;Starting main loop";
 			do{
 				// double timeout = std::max(current_settings->burst_off, time_to_send) + 0.1;
