@@ -137,6 +137,11 @@ def Packets_to_file(parameters, timeout=None, filename=None, dpc_expected=None, 
         group_name = metadata['front_end_code']
         samples_per_channel = int(metadata['length'] / metadata['channels'])
         dataset = h5fp[dev_name][group_name]["data"]
+        # # There is something going on with creating this twice if hdf5 is installed manually? 
+        # try:
+        #     dataset.attrs.create('samples',0)
+        # except TypeError:
+        #     pass
         errors = h5fp[dev_name][group_name]["errors"]
         dataset_ext = h5fp[dev_name][group_name]["ext"]
         data_shape = np.shape(dataset)
@@ -150,41 +155,42 @@ def Packets_to_file(parameters, timeout=None, filename=None, dpc_expected=None, 
                 trigger_dataset[current_len_trigger] = index
                 # trigger_name = str(trigger.__class__.__name__)
 
-        try:
-            if data_shape[0] < metadata['channels']:
-                print_warning("Main dataset in H5 file not initialized.")
-                dataset.resize(metadata['channels'], 0)
+        # try:
+        if data_shape[0] < metadata['channels']:
+            print_warning("Main dataset in H5 file not initialized.")
+            dataset.resize(metadata['channels'], 0)
 
-            if data_end > data_shape[1]:
-                if dynamic_alloc_warning:
-                    print_warning("Main dataset in H5 file not correctly sized. Dynamically extending dataset...")
-                    # print_debug("File writing thread is dynamically extending datasets.")
-                    dynamic_alloc_warning = False
-                dataset.resize(data_end, 1)
-            packet = np.reshape(data, (samples_per_channel,metadata['channels'])).T
-            dataset[:, data_start:data_end] = packet
-            dataset.attrs.__setitem__("samples", data_end)
+        if data_end > data_shape[1]:
+            if dynamic_alloc_warning:
+                print_warning("Main dataset in H5 file not correctly sized. Dynamically extending dataset...")
+                # print_debug("File writing thread is dynamically extending datasets.")
+                dynamic_alloc_warning = False
+            dataset.resize(data_end, 1)
+        packet = np.reshape(data, (samples_per_channel,metadata['channels'])).T
+        dataset[:, data_start:data_end] = np.copy(packet)
+        dataset.attrs.modify('samples',data_end)
+        #dataset.attrs.__setitem__("samples", data_end)
 
 
-            #print_debug("Resizing to %d, writing to %d" % (metadata['packet_number']+1,metadata['packet_number']))
-            dataset_ext.resize((metadata['packet_number']+1,))
-            dataset_ext[metadata['packet_number']] = metadata["ext"]
+        #print_debug("Resizing to %d, writing to %d" % (metadata['packet_number']+1,metadata['packet_number']))
+        dataset_ext.resize((metadata['packet_number']+1,))
+        dataset_ext[metadata['packet_number']] = metadata["ext"]
 
-            if data_start == 0:
-                dataset.attrs.__setitem__("start_epoch", time.time())
-                h5fp['raw_data%d'%metadata['usrp_number']].attrs.__setitem__('meas_type',meas_type)
+        if data_start == 0:
+            dataset.attrs.__setitem__("start_epoch", time.time())
+            h5fp['raw_data%d'%metadata['usrp_number']].attrs.__setitem__('meas_type',meas_type)
 
-            if metadata['errors'] != 0:
-                print_warning("The server encounterd an error")
-                err_shape = np.shape(errors)
-                err_len = err_shape[1]
-                if err_shape[0] == 0:
-                    errors.resize(2, 0)
-                errors.resize(err_len + 1, 1)
-                errors[:, err_len] = [data_start, data_end]
-                if web_kit_flag: kwargs['web_stats']['error'] += 1
-        except RuntimeError as err:
-            print_error("A packet has not been written because of a problem: " + str(err))
+        if metadata['errors'] != 0:
+            print_warning("The server encounterd an error")
+            err_shape = np.shape(errors)
+            err_len = err_shape[1]
+            if err_shape[0] == 0:
+                errors.resize(2, 0)
+            errors.resize(err_len + 1, 1)
+            errors[:, err_len] = [data_start, data_end]
+            if web_kit_flag: kwargs['web_stats']['error'] += 1
+        # except RuntimeError as err:
+        #     print_error("A packet has not been written because of a problem: " + str(err))
 
     def write_single_H5_packet(metadata, data, h5fp):
         '''

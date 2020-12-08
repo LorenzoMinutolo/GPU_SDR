@@ -21,7 +21,7 @@ def run(gain,iter,rate,freq,front_end, f0,f1, lapse, points, ntones, delay_durat
         if delay_over is None:
             print("Cannot find line delay. Measuring line delay before VNA:")
 
-            filename = u.measure_line_delay(rate, freq, front_end, USRP_num=0, tx_gain=0, rx_gain=0, output_filename=None, compensate = True, duration = delay_duration)
+            filename = u.measure_line_delay(rate, freq, front_end, USRP_num=0, tx_gain=gain, rx_gain=0, output_filename=None, compensate = True, duration = delay_duration)
 
             delay = u.analyze_line_delay(filename, False)
 
