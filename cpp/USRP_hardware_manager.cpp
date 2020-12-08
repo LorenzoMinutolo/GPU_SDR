@@ -1307,71 +1307,117 @@ void hardware_manager::single_tx_thread(
 
     uhd::tx_metadata_t metadata_tx;
 
-    BOOST_LOG_TRIVIAL(debug) <<"EVENT:37; Starting metadata thread";
+		BOOST_LOG_TRIVIAL(debug) <<"EVENT:37; Starting metadata thread";
+
 		boost::thread* metadata_thread = nullptr;
 		if(front_end == 'A'){
-    	metadata_thread = new boost::thread(boost::bind(&hardware_manager::async_stream,this,tx_stream,front_end));
+			metadata_thread = new boost::thread(boost::bind(&hardware_manager::async_stream,this,tx_stream,front_end));
 		}
-    metadata_tx.start_of_burst = true;
-    metadata_tx.end_of_burst = false;
-    metadata_tx.has_time_spec  = true;
-    metadata_tx.time_spec = uhd::time_spec_t(1.0+current_settings->delay);
-		double timeout = 1.0+current_settings->delay + 0.1;
-    //optimizations for tx loop
-    size_t max_samples_tx = current_settings->samples;
-    //double burst_off = current_settings->burst_off;
-    size_t buffer_len_tx = current_settings->buffer_len;
-    //size_t cache = cache_line_size();
+		// BURSTED BRANCHING
+		if (current_settings->burst_on > 0. and current_settings->burst_off > 0){
+			//bursted thread for fastchirp application.
+			size_t total_sent_samples = 0;
+			double seconds_in_future = 1.0+current_settings->delay;
+			double time_to_send = seconds_in_future;
+			size_t single_chirp_samples = current_settings->chirp_t[0] * current_settings->rate;
+			BOOST_LOG_TRIVIAL(info) <<"EVENT_START:27;Starting main loop";
+			do{
+				// double timeout = std::max(current_settings->burst_off, time_to_send) + 0.1;
+				double timeout = std::max(double(current_settings->burst_off), time_to_send) + 0.1;
+				size_t num_acc_samps = 0; // total samples transmitted
+	      metadata_tx.start_of_burst = true;
+	      metadata_tx.end_of_burst   = false;
+	      metadata_tx.has_time_spec  = true;
+	      metadata_tx.time_spec      = uhd::time_spec_t(time_to_send);
+
+				//FROM HERE TO CHECK
+				try{
+					while (num_acc_samps < single_chirp_samples) {
+	            size_t samps_to_send = std::min(current_settings->buffer_len, single_chirp_samples - num_acc_samps);
+	            if (samps_to_send <= current_settings->buffer_len) metadata_tx.end_of_burst = true;
+
+							// FETCH THE BUFFER
+							while(not TX_queue->pop(tx_buffer)) std::this_thread::sleep_for(std::chrono::nanoseconds(500));
+
+							// Send the buffer
+							num_acc_samps += tx_stream->send(tx_buffer,samps_to_send, metadata_tx, timeout);
+	            metadata_tx.has_time_spec  = false;
+	            metadata_tx.start_of_burst = false;
+
+						}
+					}catch (boost::thread_interrupted &){
+	            active = false;
+	            BOOST_LOG_TRIVIAL(info) <<"EVENT:26; Interrupt received";
+	        }
+					total_sent_samples += single_chirp_samples;
+					time_to_send += current_settings->burst_off; //THIS SHOULD BE = ??
+			}while(total_sent_samples < current_settings->samples);
+		}else{
+			//regular continuous streaming thread.
+
+	    metadata_tx.start_of_burst = true;
+	    metadata_tx.end_of_burst = false;
+	    metadata_tx.has_time_spec  = true;
+	    metadata_tx.time_spec = uhd::time_spec_t(1.0+current_settings->delay);
+			double timeout = 1.0+current_settings->delay + 0.1;
+	    //optimizations for tx loop
+	    size_t max_samples_tx = current_settings->samples;
+	    //double burst_off = current_settings->burst_off;
+	    size_t buffer_len_tx = current_settings->buffer_len;
+	    //size_t cache = cache_line_size();
+
+			std::cout<< "Parameter burst_on: "<< current_settings->burst_on <<std::endl;
+			std::cout<< "Parameter burst_off: "<< current_settings->burst_off <<std::endl;
 
 
-    std::future<float2*> handle;
-    //tx_next_buffer = get_buffer_ready(TX_queue, buffer_len_tx, cache);
-    BOOST_LOG_TRIVIAL(info) <<"EVENT_START:27;Starting main loop";
-    while(active and (sent_samp < current_settings->samples)){
-        try{
+	    std::future<float2*> handle;
+	    //tx_next_buffer = get_buffer_ready(TX_queue, buffer_len_tx, cache);
+	    BOOST_LOG_TRIVIAL(info) <<"EVENT_START:27;Starting main loop";
+	    while(active and (sent_samp < current_settings->samples)){
+	        try{
 
-            boost::this_thread::interruption_point();
+	            boost::this_thread::interruption_point();
 
-            if(sent_samp + buffer_len_tx >= max_samples_tx) metadata_tx.end_of_burst = true;
+	            if(sent_samp + buffer_len_tx >= max_samples_tx) metadata_tx.end_of_burst = true;
 
-            //tx_buffer = tx_next_buffer;
+	            //tx_buffer = tx_next_buffer;
 
-            //handle = std::async(std::launch::async, get_buffer_ready, TX_queue, buffer_len_tx, cache);
+	            //handle = std::async(std::launch::async, get_buffer_ready, TX_queue, buffer_len_tx, cache);
 
-            while(not TX_queue->pop(tx_buffer))std::this_thread::sleep_for(std::chrono::nanoseconds(500));
+	            while(not TX_queue->pop(tx_buffer))std::this_thread::sleep_for(std::chrono::nanoseconds(500));
 
-            sent_samp += tx_stream->send(tx_buffer, buffer_len_tx, metadata_tx, timeout);
-						timeout = 0.1f;
-            metadata_tx.start_of_burst = false;
-            metadata_tx.has_time_spec = false;
+	            sent_samp += tx_stream->send(tx_buffer, buffer_len_tx, metadata_tx, timeout);
+							timeout = 0.1f;
+	            metadata_tx.start_of_burst = false;
+	            metadata_tx.has_time_spec = false;
 
-			//tx_next_buffer = handle.get();
+				//tx_next_buffer = handle.get();
 
-            if(memory)memory->trash(tx_buffer);
+	            if(memory)memory->trash(tx_buffer);
 
-        }catch (boost::thread_interrupted &){
-            active = false;
-            BOOST_LOG_TRIVIAL(info) <<"EVENT:26; Interrupt received";
-        }
-
-    }
+	        }catch (boost::thread_interrupted &){
+	            active = false;
+	            BOOST_LOG_TRIVIAL(info) <<"EVENT:26; Interrupt received";
+	        }
+	    }
+		}
 		BOOST_LOG_TRIVIAL(info) <<"EVENT_END:27; Exiting main loop";
-    //clean the queue as it's le last consumer
-    while(not TX_queue->empty()){
-        TX_queue->pop(tx_buffer);
-        if(memory)memory->trash(tx_buffer);
-    }
-    //something went wrong and the thread has interrupred
-    if(not active and sent_samp < current_settings->samples){
-        print_warning("TX thread was joined without transmitting the specified samples");
-        std::cout<< "Missing "<< current_settings->samples - sent_samp<<" samples"<<std::endl;
-        BOOST_LOG_TRIVIAL(info) <<"EVENT:25; Thread was joined without transmitting "<< current_settings->samples - sent_samp<<" samples";
-    }
+		//clean the queue as it's le last consumer
+		while(not TX_queue->empty()){
+				TX_queue->pop(tx_buffer);
+				if(memory)memory->trash(tx_buffer);
+		}
+		//something went wrong and the thread has interrupred
+		if(not active and sent_samp < current_settings->samples){
+				print_warning("TX thread was joined without transmitting the specified samples");
+				std::cout<< "Missing "<< current_settings->samples - sent_samp<<" samples"<<std::endl;
+				BOOST_LOG_TRIVIAL(info) <<"EVENT:25; Thread was joined without transmitting "<< current_settings->samples - sent_samp<<" samples";
+		}
 		if(front_end == 'A'){
-	    metadata_thread->interrupt();
-	    metadata_thread->join();
-	    delete metadata_thread;
-	    metadata_thread = nullptr;
+			metadata_thread->interrupt();
+			metadata_thread->join();
+			delete metadata_thread;
+			metadata_thread = nullptr;
 		}
     //set check the condition to false
     if(front_end == 'A'){
