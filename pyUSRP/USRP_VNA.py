@@ -282,7 +282,7 @@ def Dual_VNA(start_f_A, last_f_A, start_f_B, last_f_B, measure_t, n_points, tx_g
 
 
 
-def Single_VNA(start_f, last_f, measure_t, n_points, tx_gain, Rate = None, decimation = True, RF = None, Front_end = None,
+def Single_VNA(start_f, last_f, measure_t, n_points, tx_gain, rx_gain=0,Rate = None, decimation = True, RF = None, Front_end = None,
                Device = None, output_filename = None, Multitone_compensation = None, Iterations = 1, verbose = False, repeat_measure = False,
                subfolder = None, **kwargs):
 
@@ -423,7 +423,7 @@ def Single_VNA(start_f, last_f, measure_t, n_points, tx_gain, Rate = None, decim
 
     vna_command.set(RX_frontend,"mode", "RX")
     vna_command.set(RX_frontend,"buffer_len", 1e6)
-    vna_command.set(RX_frontend,"gain", 0)
+    vna_command.set(RX_frontend,"gain", rx_gain)
     vna_command.set(RX_frontend,"delay", 1+delay)
     vna_command.set(RX_frontend,"samples", number_of_samples)
     vna_command.set(RX_frontend,"rate", Rate)
