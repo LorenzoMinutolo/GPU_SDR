@@ -430,7 +430,7 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
         save_path = ''
 
     if ((mode != "PFB") and (mode != "DIRECT")):
-        error_msg = "Noise acquisition mode %s not defined" % str(mode)
+        err_msg = "Noise acquisition mode %s not defined" % str(mode)
         print_error(err_msg)
         raise ValueError(err_msg)
 
