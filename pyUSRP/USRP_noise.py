@@ -48,6 +48,8 @@ from .USRP_files import *
 from .USRP_delay import *
 from .USRP_fitting import get_fit_param
 from .USRP_fitting import get_fit_data
+from .USRP_fitting import fit_circle
+from .USRP_fitting import get_fit_base
 
 def dual_get_noise(tones_A, tones_B, measure_t, rate, decimation = None, amplitudes_A = None, amplitudes_B = None, RF_A = None, RF_B = None, tx_gain_A = 0, tx_gain_B = 0, output_filename = None,
               Device = None, delay = None, pf_average = None, mode = "DIRECT" , subfolder = None, **kwargs):
@@ -1123,6 +1125,31 @@ def plot_noise_spec(filenames, channel_list=None, max_frequency=None, title_info
     return output_filename
 
 
+def brute_frequency_timestream(noise_frequency, noise_data, fit_base_data, fit_freq_axis, ampl, power):
+    '''
+    Convert IQ timestreams into frequency and quality factor timestreams.
+
+    Arguments:
+        - noise_frequency: float, Noise acquisition tone in Hz.
+        - noise_data: list of complex, Noise data already scaled as S21 (see diagnosic() function).
+        - fit_param: if fit parameters are given in the form (f0, A, phi, D, Qi, Qr, Qe_re, Qe_im,a, _, _, pcov), the fit won't be executed again.
+
+    Returns:
+        - X noise
+        - Qr noise
+    '''
+    calibrations = (1./ampl)*CURRENT_CALIBRATION['tmp_calib']*(db2linear(USRP_power - power))
+    # center,radius = fit_circle(z)
+    print("noise: %.2f\tvna:%.2f" % (noise_frequency/1e6, np.mean(fit_freq_axis)/1e6))
+    noise_data = noise_data * calibrations
+    pl.figure()
+    # pl.scatter(noise_data[::10000].real,noise_data[::10000].imag)
+    pl.plot(fit_base_data.real,fit_base_data.imag)
+    pl.savefig("test.png")
+    pl.close()
+    exit()
+
+
 def calculate_frequency_timestream(noise_frequency, noise_data, fit_param):
     """
     Convert IQ timestreams into frequency and quality factor timestreams.
@@ -1258,6 +1285,7 @@ def get_frequency_timestreams(NOISE_filename, start = None, end = None, channel_
         ant = frontend
 
     info = get_rx_info(NOISE_filename, ant=ant)
+    tx_info = get_tx_info(NOISE_filename, ant=ant)
     last_sample = None
     if start is not None:
         if info['wave_type'] == "TONES":
@@ -1288,12 +1316,19 @@ def get_frequency_timestreams(NOISE_filename, start = None, end = None, channel_
 
     data = openH5file(NOISE_filename, ch_list=numeric_channel_list, start_sample=start_sample, last_sample=last_sample, usrp_number=None, front_end=frontend,
                    verbose=False, error_coord=False, big_file = False)
+
+    freqs,S21s = get_fit_base(NOISE_filename, verbose = False)
+
     result_f = []
     result_q = []
     for i in range(len(params)):
         # f0, A, phi, D, Qi, Qr, Qe_re, Qe_im,a
         fit_param = (params[i]['f0'], params[i]['A'], params[i]['phi'], params[i]['D'], params[i]['Qi'], params[i]['Qr'], np.real(params[i]['Qe']),np.imag(params[i]['Qe']),params[i]['a'])
         f_ts, q_ts = calculate_frequency_timestream(tones[i], data[i], fit_param)
+
+
+        # brute_frequency_timestream(tones[i], data[i], S21s[i], freqs[i], tx_info['ampl'][i],tx_info['gain'])
+
         result_f.append(f_ts - np.mean(f_ts))
         result_q.append(q_ts - np.mean(q_ts))
 
@@ -1623,7 +1658,6 @@ def diagnostic_VNA_noise(noise_filename, points = None, VNA_file = None, ant = "
     #retrive calibrations
     #calibrations = [(1./tx_info['ampl'][i])*CURRENT_CALIBRATION['tmp_calib']/(10**((USRP_power + tx_info['gain'])/20.)) for i in range(len(tx_info['ampl']))]
     calibrations = [ (1./tx_info['ampl'][i])*CURRENT_CALIBRATION['tmp_calib']*(db2linear(USRP_power - tx_info['gain'])) for i in range(len(tx_info['ampl']))]
-
     #do averages
     #print_debug("Averaging...")
     initial_cutoff = 1000
@@ -1637,10 +1671,11 @@ def diagnostic_VNA_noise(noise_filename, points = None, VNA_file = None, ant = "
         decimation = int((np.shape(noise_file['raw_data0'][ant]['data'])[1] - initial_cutoff)/points)
         cutoff = int(0.1*np.shape(noise_file['raw_data0'][ant]['data'])[1]/decimation)
         print_debug("Averaging noise data in %d points, excluding first %d points"%(points,initial_cutoff))
-        noise_points = np.asarray([
-            signal.decimate(dataset[initial_cutoff:],decimation,ftype="fir")[cutoff:-cutoff] for dataset in noise_file['raw_data0'][ant]['data']
-
-        ])
+        # noise_points = np.asarray([
+        #     signal.decimate(dataset[initial_cutoff:],decimation,ftype="fir")[cutoff:-cutoff] for dataset in noise_file['raw_data0'][ant]['data']
+        #
+        # ])
+        noise_points = np.asarray([dataset[initial_cutoff::decimation] for dataset in noise_file['raw_data0'][ant]['data']])
         if len(noise_points[0]) < 1:
             print_error("Diagnostic plot will be wrong: residual number of points < 0 afret cutoffs")
 
@@ -1949,7 +1984,7 @@ def has_NEF_group(filename, usrp_number = 0):
     return ret
 
 def plot_NEF_spectra(filenames, channel_list=None, max_frequency=None, title_info=None, backend='matplotlib',
-                    cryostat_attenuation=0, auto_open=True, output_filename=None, **kwargs):
+                    cryostat_attenuation=0, auto_open=True, output_filename=None, calib = None, **kwargs):
     '''
     Plot the quality factor and frequency noise spectra of given, pre-analized, H5 files.
 
@@ -1961,6 +1996,7 @@ def plot_NEF_spectra(filenames, channel_list=None, max_frequency=None, title_inf
         - backend: see plotting backend section for informations.
         - auto_open: open the plot in default system browser if plotly backend is selected (non-blocking) or open the matplotlib figure (blocking). Default is True.
         - output_filename: output filename without any system extension. Default is Noise_timestamp().xx
+        - calib: if calibration is given, the function plots NEPs. Calibration is assumed to be in Hz/pW. Default is None.
         - kwargs:
             * usrp_number and front_end can be passed to the openH5file() function.
             * tx_front_end can be passed to manually determine the tx frontend to calculate the readout power.
@@ -2055,6 +2091,13 @@ def plot_NEF_spectra(filenames, channel_list=None, max_frequency=None, title_inf
             front_end=front_end,
             channel_list=channel_list
         )
+        if calib is not None:
+            print (freq.shape)
+            for i in range(len(Frequency)):
+                if calib[i]!=0:
+                    Frequency[i] = Frequency[i] / calib[i] * 1e6
+                else:
+                    Frequency[i] = [1 for j in Frequency[i]]
         if max_frequency is not None:
             index_cut = find_nearest(freq, max_frequency)
             index_cut = np.min([len(freq),len(Frequency[0]),index_cut])
@@ -2067,12 +2110,16 @@ def plot_NEF_spectra(filenames, channel_list=None, max_frequency=None, title_inf
             y_name_set = False
 
             if backend == 'matplotlib':
-                ax.set_ylabel("PSD [Hz/sqrt(Hz)] or Qr/sqrt(Hz)")
-
+                if calib is None:
+                    ax.set_ylabel("PSD [Hz/sqrt(Hz)] or Qr/sqrt(Hz)")
+                else:
+                    ax.set_ylabel("PSD [aW/sqrt(Hz)]")
 
             elif backend == 'plotly':
-                fig['layout']['yaxis1'].update(title="PSD [Hz/sqrt(Hz)] or Qr/sqrt(Hz)")
-
+                if calib is None:
+                    fig['layout']['yaxis1'].update(title="PSD [Hz/sqrt(Hz)] or Qr/sqrt(Hz)")
+                else:
+                    fig['layout']['yaxis1'].update(title="PSD [aW/sqrt(Hz)]")
 
         if rate_tag_set:
             rate_tag_set = False
@@ -2082,7 +2129,10 @@ def plot_NEF_spectra(filenames, channel_list=None, max_frequency=None, title_inf
                 plot_title += "Effective rate: %.2f ksps" % (info['rate'] / 1e3)
 
         if output_filename is None:
-            output_filename = "QFNoise_"
+            if calib is None:
+                output_filename = "QFNoise_"
+            else:
+                output_filename = "NEP_Noise_"
             if channel_list is not None:
                 output_filename += "channels_"
                 for ii in channel_list:
@@ -2102,7 +2152,8 @@ def plot_NEF_spectra(filenames, channel_list=None, max_frequency=None, title_inf
                 if add_info_labels is not None:
                     label += "\n" + add_info_labels[f_count]
                 ax.loglog(freq, R, '--', color=get_color(f_count + i), label="Frequency " + label)
-                ax.loglog(freq, I, color=get_color(f_count + i), label="Quality " + label)
+                if calib is None:
+                    ax.loglog(freq, I, color=get_color(f_count + i), label="Quality " + label)
             elif backend == 'plotly':
                 label = filename.split("/")[-1]+"<br>"
                 label += "Tone freq: %.2f MHz" % (info['tones'][i] / 1e6)
@@ -2142,14 +2193,15 @@ def plot_NEF_spectra(filenames, channel_list=None, max_frequency=None, title_inf
                     line=dict(color=get_color(f_count + i)),
                     mode='lines'
                 ), 1, 1)
-                fig.append_trace(go.Scatter(
-                    x=freq,
-                    y=I,
-                    name="Quality " + label,
-                    legendgroup="group" + str(i) + "file" + str(f_count),
-                    line=dict(color=get_color(f_count + i), dash='dot'),
-                    mode='lines'
-                ), 1, 1)
+                if calib is None:
+                    fig.append_trace(go.Scatter(
+                        x=freq,
+                        y=I,
+                        name="Quality " + label,
+                        legendgroup="group" + str(i) + "file" + str(f_count),
+                        line=dict(color=get_color(f_count + i), dash='dot'),
+                        mode='lines'
+                    ), 1, 1)
         # increase file counter
         f_count += 1
 

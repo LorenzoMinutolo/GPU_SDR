@@ -101,6 +101,7 @@ hardware_manager::hardware_manager(server_settings* settings, bool sw_loop_init,
         this_usrp_number = usrp_number;
 
         //recursively look for usrps
+				
         dev_addrs = uhd::device::find(hint);
         std::cout<<"Looking for USRP device number "<< usrp_number << " .." <<std::flush;
         while(dev_addrs.size()< usrp_number + 1){
@@ -122,7 +123,7 @@ hardware_manager::hardware_manager(server_settings* settings, bool sw_loop_init,
 						device_arguments+= " master_clock_rate=200e6";
 						flag_export_lo = true;
 					}else if((device_type.substr(0,1)).compare("x")==0){ // Detect x series
-						device_arguments+= " addr=192.168.30.2, second_addr=192.168.40.2";
+						device_arguments+= " addr=192.168.30.2";//, second_addr=192.168.40.2";
 					}
 					uhd::device_addr_t args(device_arguments);
 					std::cout<< "Creating device with arguments: "<<device_arguments <<std::endl;
@@ -134,6 +135,28 @@ hardware_manager::hardware_manager(server_settings* settings, bool sw_loop_init,
 					main_usrp = uhd::usrp::multi_usrp::make(args);
 					std::cout<< "Master clock rate set to "<< double(main_usrp->get_master_clock_rate())/1e6 << " MHz"<<std::endl;
 				}
+
+				// std::cout<<"Printing available RX filters:"<<std::endl;
+				// std::vector<std::string> filters_names = main_usrp->get_rx_filter_names(0);
+				// for(size_t w = 0; w<filters_names.size(); w++){
+				// 	std::cout<< filters_names[w]<<std::endl;
+				// }
+				// std::cout<<"Printing available TX filters:"<<std::endl;
+				// filters_names = main_usrp->get_tx_filter_names(0);
+				// for(size_t w = 0; w<filters_names.size(); w++){
+				// 	std::cout<< filters_names[w]<<std::endl;
+				// }
+				// std::cout<<"All filters printed"<<std::endl;
+				//
+				// std::cout<<"Printing available RX bw range:"<<std::endl;
+				// uhd::meta_range_t rx_bw_range = main_usrp->get_rx_bandwidth_range(0);
+				// std::cout<< "start: "<< rx_bw_range.start()<< " stop: "<<rx_bw_range.stop()<< " step: "<<rx_bw_range.step() <<std::endl;
+				//
+				// std::cout<<"Printing available TX bw range:"<<std::endl;
+				// uhd::meta_range_t tx_bw_range = main_usrp->get_tx_bandwidth_range(0);
+				// std::cout<< "start: "<< tx_bw_range.start()<< " stop: "<<tx_bw_range.stop()<< " step: "<<tx_bw_range.step() <<std::endl;
+				//
+				// std::cout<<"All bw ranges printed"<<std::endl;
 
 
 				// uhd::device_addr_t args("master_clock_rate=200e6");
@@ -421,7 +444,7 @@ preallocator<float2>* memory                //if the thread is transmitting a bu
                     'A'
                 ));
             SetThreadName(A_tx_thread, "A_tx_thread");
-            //Thread_Prioriry(*A_tx_thread, 99, thread_op);
+            Thread_Prioriry(*A_tx_thread, 99, thread_op);
 
             }else if(front_end=='B'){
                 B_tx_thread = new boost::thread(boost::bind(&hardware_manager::single_tx_thread,this,
@@ -434,16 +457,16 @@ preallocator<float2>* memory                //if the thread is transmitting a bu
                 ));
 
             SetThreadName(B_tx_thread, "B_tx_thread");
-            //Thread_Prioriry(*B_tx_thread, 99, thread_op);
+            Thread_Prioriry(*B_tx_thread, 99, thread_op);
 
             }
         }else{
             if(front_end=='A'){
                 A_tx_thread = new boost::thread(boost::bind(&hardware_manager::software_tx_thread,this,current_settings,memory,A_TX_queue,A_sw_loop_queue,'A'));
-                //Thread_Prioriry(*A_tx_thread, 99, thread_op);
+                Thread_Prioriry(*A_tx_thread, 99, thread_op);
             }else if(front_end=='B'){
                 B_tx_thread = new boost::thread(boost::bind(&hardware_manager::software_tx_thread,this,current_settings,memory,B_TX_queue,B_sw_loop_queue,'B'));
-                //Thread_Prioriry(*B_tx_thread, 99, thread_op);
+                Thread_Prioriry(*B_tx_thread, 99, thread_op);
             }
         }
     }else{
@@ -490,7 +513,7 @@ void hardware_manager::start_rx(
                     'A',
 										main_usrp
 									));
-                //Thread_Prioriry(*A_rx_thread, 99, thread_op);
+                Thread_Prioriry(*A_rx_thread, 99, thread_op);
                 SetThreadName(A_rx_thread, "A_rx_thread");
             }else if(front_end=='B'){
                 B_rx_thread = new boost::thread(boost::bind(&hardware_manager::single_rx_thread,this,
@@ -502,17 +525,17 @@ void hardware_manager::start_rx(
                     'B',
 										main_usrp
 									));
-                //Thread_Prioriry(*B_rx_thread, 99, thread_op);
+                Thread_Prioriry(*B_rx_thread, 99, thread_op);
                 SetThreadName(B_rx_thread, "B_rx_thread");
             }
         }else{
             if(front_end=='A'){
                 A_rx_thread = new boost::thread(boost::bind(&hardware_manager::software_rx_thread,this,current_settings,memory,A_RX_queue,A_sw_loop_queue,'A'));
-                //Thread_Prioriry(*A_rx_thread, 99, thread_op);
+                Thread_Prioriry(*A_rx_thread, 99, thread_op);
                 SetThreadName(A_rx_thread, "A_rx_thread");
             }else if(front_end=='B'){
                 B_rx_thread = new boost::thread(boost::bind(&hardware_manager::software_rx_thread,this,current_settings,memory,B_RX_queue,B_sw_loop_queue,'B'));
-                //Thread_Prioriry(*B_rx_thread, 99, thread_op);
+                Thread_Prioriry(*B_rx_thread, 99, thread_op);
                 SetThreadName(B_rx_thread, "B_rx_thread");
             }
         }
@@ -958,8 +981,8 @@ std::string hardware_manager::apply_antenna_config(param *parameters, param *old
 															main_usrp->set_rx_lo_export_enabled(true, "lo1", chan);
 															std::cout<< "Setting RX device tree properties..." <<std::endl;
 															// main_usrp->get_device()->get_tree()->access<bool>("mboards/0/dboards/A/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
-															main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
-															main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_0/export").set(true);
+															// main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
+															// main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_0/export").set(true);
 															std::cout<< "RX LO export set." <<std::endl;
 														}else if(parameters->tuning_mode == 4){
 															uhd::tune_request_t tune_request(parameters->tone);
@@ -968,8 +991,8 @@ std::string hardware_manager::apply_antenna_config(param *parameters, param *old
 															main_usrp->set_rx_lo_export_enabled(true, "lo1", chan);
 															std::cout<< "Setting RX device tree properties..." <<std::endl;
 															// main_usrp->get_device()->get_tree()->access<bool>("mboards/0/dboards/A/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
-															main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
-															main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_0/export").set(true);
+															// main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
+															// main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/rx_frontends/0/los/lo1/lo_distribution/LO_OUT_0/export").set(true);
 															std::cout<< "RX LO export set." <<std::endl;
 		                        }
 
@@ -1011,7 +1034,7 @@ std::string hardware_manager::apply_antenna_config(param *parameters, param *old
 													  std::cout<< "Enabling TX lo1 import on channel: "<< chan << " ..." <<std::endl;
 														main_usrp->set_tx_lo_source("external", "lo1", chan);
 														// main_usrp->get_device()->get_tree()->access<bool>("mboards/0/dboards/A/tx_frontends/0/los/lo1/lo_distribution/LO_IN_0/import").set(true);
-														main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/tx_frontends/0/los/lo1/lo_distribution/LO_IN_0/import").set(true);
+														// main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/tx_frontends/0/los/lo1/lo_distribution/LO_IN_0/import").set(true);
                         }else if(parameters->tuning_mode == 3){
 													uhd::tune_request_t tune_request(parameters->tone);
 													tune_request.args = uhd::device_addr_t("mode_n=integer");
@@ -1020,8 +1043,8 @@ std::string hardware_manager::apply_antenna_config(param *parameters, param *old
 													main_usrp->set_tx_lo_export_enabled(true, "lo1", chan);
 													std::cout<< "Setting TX device tree properties..." <<std::endl;
 													// main_usrp->get_device()->get_tree()->access<bool>("mboards/0/dboards/A/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
-													main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
-													main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_0/export").set(true);
+													// main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
+													// main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_0/export").set(true);
 													std::cout<< "TX LO export set." <<std::endl;
                         }else if(parameters->tuning_mode == 4){
 													uhd::tune_request_t tune_request(parameters->tone);
@@ -1030,8 +1053,8 @@ std::string hardware_manager::apply_antenna_config(param *parameters, param *old
 													main_usrp->set_tx_lo_export_enabled(true, "lo1", chan);
 													std::cout<< "Setting TX device tree properties..." <<std::endl;
 													// main_usrp->get_device()->get_tree()->access<bool>("mboards/0/dboards/A/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
-													main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
-													main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_0/export").set(true);
+													// main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_3/export").set(true);
+													// main_usrp->get_tree()->access<bool>("blocks/0/Radio#0/dboard/tx_frontends/0/los/lo1/lo_distribution/LO_OUT_0/export").set(true);
 													std::cout<< "TX LO export set." <<std::endl;
                         }
                         old_parameters->tone = main_usrp->get_tx_freq(chan);
@@ -1096,8 +1119,8 @@ std::string hardware_manager::apply_antenna_config(param *parameters, param *old
             //check if tx or rx
             if(not sw_loop){
                 parameters->mode == RX ?
-                    main_usrp->set_rx_bandwidth(parameters->bw,chan):
-                    main_usrp->set_tx_bandwidth(parameters->bw,chan);
+                    main_usrp->set_rx_bandwidth(parameters->bw):
+                    main_usrp->set_tx_bandwidth(parameters->bw);
 
                 if(parameters->mode == RX){
                     old_parameters->bw = main_usrp->get_rx_bandwidth(chan);
@@ -1106,9 +1129,9 @@ std::string hardware_manager::apply_antenna_config(param *parameters, param *old
                     old_parameters->bw = main_usrp->get_tx_bandwidth(chan);
                     ss << boost::format("\tSetting TX bandwidth: %f MHz. ") % (parameters->bw/ 1e6 ) << std::flush;
                 }
-                old_parameters->bw == parameters->bw?
-                    ss<<std::endl:
-                    ss<<boost::format("Effective value: %f MHz. ") % (old_parameters->gain/ 1e6 )<<std::endl;
+                // old_parameters->bw == parameters->bw?
+                    // ss<<std::endl:
+                    ss<<boost::format("Effective value: %f MHz. ") % (main_usrp->get_tx_bandwidth(chan)/ 1e6 )<<std::endl;
                 parameters->bw = old_parameters->bw;
             }else old_parameters->bw = parameters->bw;
         }

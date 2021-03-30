@@ -282,9 +282,9 @@ def Dual_VNA(start_f_A, last_f_A, start_f_B, last_f_B, measure_t, n_points, tx_g
 
 
 
-def Single_VNA(start_f, last_f, measure_t, n_points, tx_gain, Rate = None, decimation = True, RF = None, Front_end = None,
+def Single_VNA(start_f, last_f, measure_t, n_points, tx_gain, rx_gain = 0, Rate = None, decimation = True, RF = None, Front_end = None,
                Device = None, output_filename = None, Multitone_compensation = None, Iterations = 1, verbose = False, repeat_measure = False,
-               subfolder = None, **kwargs):
+               subfolder = None, tuning_mode = 0, **kwargs):
 
     '''
     Perform a VNA scan using a single frontend of a single USRP device.
@@ -295,6 +295,7 @@ def Single_VNA(start_f, last_f, measure_t, n_points, tx_gain, Rate = None, decim
         - measure_t: duration of the measure in seconds.
         - n_points: number of points to use in the VNA scan.
         - tx_gain: transmission amplifier gain.
+        - rx_gain: receiver amplifier gain.
         - Rate: Optional parameter to control the scan rate. Default is calculate from start_f an last_f args.
         - decimation: if True the decimation of the signal will occur on-server. Default is True.
         - RF: central up/down mixing frequency. Default is deducted by other arguments.
@@ -306,6 +307,7 @@ def Single_VNA(start_f, last_f, measure_t, n_points, tx_gain, Rate = None, decim
         - repeat_measure: when true, in case of an error, repeat the measure and delete the old file. Default is False.
         - verbose: if True outputs on terminal some diagnostic info. deafult is False.
         - subfolder: subfolder string where to create the file. The path MUST exist or the measure will not happen. Default is None: write in the current folder
+        - tuning_mode: 0 for integer tuning, 1 for fractional
 
     Returns:
         - filename where the measure is or empty string if something went wrong.
@@ -411,7 +413,7 @@ def Single_VNA(start_f, last_f, measure_t, n_points, tx_gain, Rate = None, decim
     vna_command.set(TX_frontend,"delay", 1)
     vna_command.set(TX_frontend,"samples", number_of_samples)
     vna_command.set(TX_frontend,"rate", Rate)
-    vna_command.set(TX_frontend,"bw", 2*Rate)
+    vna_command.set(TX_frontend,"bw", 250e6)
 
     vna_command.set(TX_frontend,"wave_type", ["CHIRP"])
     vna_command.set(TX_frontend,"ampl", [Amplitude])
@@ -420,14 +422,15 @@ def Single_VNA(start_f, last_f, measure_t, n_points, tx_gain, Rate = None, decim
     vna_command.set(TX_frontend,"swipe_s", [n_points])
     vna_command.set(TX_frontend,"chirp_t", [measure_t])
     vna_command.set(TX_frontend,"rf", RF)
+    vna_command.set(TX_frontend, 'tuning_mode', tuning_mode)
 
     vna_command.set(RX_frontend,"mode", "RX")
     vna_command.set(RX_frontend,"buffer_len", 1e6)
-    vna_command.set(RX_frontend,"gain", 0)
+    vna_command.set(RX_frontend,"gain", rx_gain)
     vna_command.set(RX_frontend,"delay", 1+delay)
     vna_command.set(RX_frontend,"samples", number_of_samples)
     vna_command.set(RX_frontend,"rate", Rate)
-    vna_command.set(RX_frontend,"bw", 2*Rate)
+    vna_command.set(RX_frontend,"bw", 250e6)
 
     vna_command.set(RX_frontend,"wave_type", ["CHIRP"])
     vna_command.set(RX_frontend,"ampl", [Amplitude])
@@ -437,6 +440,7 @@ def Single_VNA(start_f, last_f, measure_t, n_points, tx_gain, Rate = None, decim
     vna_command.set(RX_frontend,"chirp_t", [measure_t])
     vna_command.set(RX_frontend,"rf", RF)
     vna_command.set(RX_frontend,"decim", decimation) # THIS only activate the decimation.
+    vna_command.set(RX_frontend, 'tuning_mode', tuning_mode)
 
     measure_complete = False
 
@@ -717,7 +721,7 @@ def VNA_timestream_plot(filename, backend='matplotlib', mode = 'magnitude', unwr
         fig.colorbar(img, label='|S21|')
         final_filename = output_filename+".png"
         print(final_filename)
-        pl.savefig(final_filename, bbox_inches="tight", dpi = 900)
+        pl.savefig(final_filename, bbox_inches="tight", dpi = 100)
 
 
 def VNA_analysis(filename, usrp_number = 0):

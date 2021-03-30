@@ -15,7 +15,14 @@ import argparse
 def run(backend, files, decim, att, title):
     for f in files:
         u.VNA_analysis(f)
-    u.plot_VNA(files, backend = backend, plot_decim = decim, unwrap_phase = True, att = att, title = title)
+    u.plot_VNA(files, backend = backend, plot_decim = decim, unwrap_phase = True, att = att, title = title,
+        # add_info = [
+        #     "",
+        #     "",
+        #     ""
+        # ]
+
+    )
 
 
 

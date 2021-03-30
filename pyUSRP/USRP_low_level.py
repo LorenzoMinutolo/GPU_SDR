@@ -117,7 +117,9 @@ CLIENT_STATUS["END_OF_MEASURE"] = False
 
 # USRP calibration for float units in Vpp
 CURRENT_CALIBRATION = manager.dict()
-CURRENT_CALIBRATION['tmp_calib'] = 1.982395
+CURRENT_CALIBRATION['tmp_calib'] = 3.177630
+# CURRENT_CALIBRATION['tmp_calib'] = 409.182425
+
 #USRP_calibration = 0.317
 
 # Server relted info

@@ -156,7 +156,8 @@ def measure_line_delay(rate, LO_freq, RF_frontend, USRP_num = 0, tx_gain = 0, rx
     delay_command.set(TX_frontend, "delay", 1)
     delay_command.set(TX_frontend, "samples", number_of_samples)
     delay_command.set(TX_frontend, "rate", rate)
-    delay_command.set(TX_frontend, "bw", 2 * rate)
+    delay_command.set(TX_frontend, "bw", 250e6)
+    delay_command.set(TX_frontend, 'tuning_mode', 0)
 
     delay_command.set(TX_frontend, "wave_type", ["CHIRP"])
     delay_command.set(TX_frontend, "ampl", [1.])
@@ -172,7 +173,8 @@ def measure_line_delay(rate, LO_freq, RF_frontend, USRP_num = 0, tx_gain = 0, rx
     delay_command.set(RX_frontend, "delay", 1+compensation)
     delay_command.set(RX_frontend, "samples", number_of_samples)
     delay_command.set(RX_frontend, "rate", rate)
-    delay_command.set(RX_frontend, "bw", 2 * rate)
+    delay_command.set(RX_frontend, "bw", 250e6)
+    delay_command.set(RX_frontend, 'tuning_mode', 0)
 
     delay_command.set(RX_frontend, "wave_type", ["CHIRP"])
     delay_command.set(RX_frontend, "freq", [start_f])

@@ -138,6 +138,33 @@ def FWMH(freq, magnitude):
     sel_freq = freq[magnitude > MH]
     return np.abs(min(sel_freq) - max(sel_freq))
 
+def fit_circle(z):
+    '''
+    Function that finds the best fit circle to an array of points in the IQ plane.
+    Performs the Least Squares Fit by Randy Bullock:
+    https://dtcenter.org/sites/default/files/community-code/met/docs/write-ups/circle_fit.pdf
+    '''
+    x, y = z.real, z.imag
+    xm, ym = np.mean(x), np.mean(y)
+    u = x - xm
+    v = y - ym
+    Su = np.sum(u)
+    Suu = np.sum(u**2)
+    Sv = np.sum(v)
+    Svv = np.sum(v**2)
+    Suv = np.sum(u*v)
+    Suuu = np.sum(u**3)
+    Suvv = np.sum(u*v**2)
+    Svuu = np.sum(v*u**2)
+    Svvv = np.sum(v**3)
+    A = np.array([[Suu, Suv],[Suv, Svv]])
+    b = 0.5*np.array([Suuu + Suvv, Svvv + Svuu])
+    zc = np.linalg.solve(A, b)
+    uc, vc = zc[0], zc[1]
+    r = np.sqrt(uc**2 + vc**2 + (Suu + Svv)/z.size)
+    return (uc + xm)+1.j*(vc + ym), r
+
+
 
 def do_fit(freq, re, im, p0=None):
     '''
@@ -324,7 +351,7 @@ def extimate_peak_number(filename, threshold = 0.2, smoothing = None, peak_width
                     mask[ii] = False
                     gradS21[ii] = gradS21[ii-1]
                     center_excl[j].append(ii)
-                    print("excluding: %.2f"%(freq[ii]/1e6))
+                    # print("excluding: %.2f"%(freq[ii]/1e6))
         if len(center_excl[j])>1:
             center_min[j] = min(center_excl[j])
             center_max[j] = max(center_excl[j])
@@ -375,6 +402,7 @@ def extimate_peak_number(filename, threshold = 0.2, smoothing = None, peak_width
         fv.close()
 
     print(("Initialize_peaks() found " +str(len(max_diag))+ " resonators."))
+    return max_diag
 
 def init_from_noise(noise_file, vna_file, guard_tones = None, ant = "A_TXRX", usrp_number = 0):
     '''
@@ -818,6 +846,33 @@ def get_fit_data(filename, verbose = False):
     if verbose: print_debug("Resonator data collected")
     f.close()
     return ret
+
+def get_fit_base(filename, verbose = False):
+    '''
+    Return the base fit data (the S21 raw data)
+    '''
+    f = bound_open(filename)
+
+    if verbose: print_debug("Getting fit param from \'%s\'"%filename)
+
+    try:
+        reso_grp = f['Resonators']
+    except KeyError:
+        err_msg = "Cannot find the resonator group inside the file"
+        print_error(err_msg)
+        raise ValueError(err_msg)
+    freqs = []
+    S21s = []
+    resonator_index = 0
+    for resonator in reso_grp:
+        resonator_group_name = "reso_%d" % resonator_index
+        # print(reso_grp[resonator_group_name]['base_S21'][:])
+        S21s.append(reso_grp[resonator_group_name]['base_S21'][:])
+        freqs.append(reso_grp[resonator_group_name]['freq'][:])
+        resonator_index += 1
+
+
+    return freqs,S21s
 
 def get_fit_param(filename, verbose = False):
     '''

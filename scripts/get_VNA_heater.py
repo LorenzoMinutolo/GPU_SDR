@@ -1,5 +1,5 @@
 
-import sys,os
+import sys,os,time
 import numpy as np
 try:
     import pyUSRP as u
@@ -12,7 +12,7 @@ except ImportError:
 
 import argparse
 
-def run(gain,iter,rate,freq,front_end, f0,f1, lapse, points, ntones, rxgain, delay_duration, delay_over):
+def run(gain,iter,rate,freq,front_end, f0,f1, lapse, points, ntones, delay_duration, delay_over, custom_name):
 
     try:
         if u.LINE_DELAY[str(int(rate/1e6))]: pass
@@ -21,7 +21,7 @@ def run(gain,iter,rate,freq,front_end, f0,f1, lapse, points, ntones, rxgain, del
         if delay_over is None:
             print("Cannot find line delay. Measuring line delay before VNA:")
 
-            filename = u.measure_line_delay(rate, freq, front_end, USRP_num=0, tx_gain=0, rx_gain=rxgain, output_filename=None, compensate = True, duration = delay_duration)
+            filename = u.measure_line_delay(rate, freq, front_end, USRP_num=0, tx_gain=0, rx_gain=0, output_filename=None, compensate = True, duration = delay_duration)
 
             delay = u.analyze_line_delay(filename, False)
 
@@ -36,8 +36,8 @@ def run(gain,iter,rate,freq,front_end, f0,f1, lapse, points, ntones, rxgain, del
         if ntones ==1:
             ntones = None
 
-    vna_filename = u.Single_VNA(start_f = f0, last_f = f1, measure_t = lapse, n_points = points, tx_gain = gain, rx_gain=rxgain, Rate=rate, decimation=True, RF=freq, Front_end=front_end,
-               Device=None, output_filename=None, Multitone_compensation=ntones, Iterations=iter, verbose=False)
+    vna_filename = u.Single_VNA(start_f = f0, last_f = f1, measure_t = lapse, n_points = points, tx_gain = gain, Rate=rate, decimation=True, RF=freq, Front_end=front_end,
+               Device=None, output_filename=custom_name, Multitone_compensation=ntones, Iterations=iter, verbose=False)
 
     return vna_filename
 
@@ -56,7 +56,6 @@ if __name__ == "__main__":
     parser.add_argument('--time', '-t', help='Duration of the scan in seconds per iteration', type=float, default=10)
     parser.add_argument('--iter', '-i', help='How many iterations to perform', type=float, default=1)
     parser.add_argument('--gain', '-g', help='set the transmission gain. Multiple gains will result in multiple scans (per frequency). Default 0 dB',  nargs='+')
-    parser.add_argument('--rxgain', '-rxg', help='Rx gain. Default is 0dB. Multiple gains will result in multiple scans (per frequency). Default 0 dB', nargs='+')
     parser.add_argument('--tones', '-tones', help='expected number of resonators',  type=int)
     parser.add_argument('--delay_duration', '-dd', help='Duration of the delay measurement',  type=float, default=0.01)
     parser.add_argument('--delay_over', '-do', help='Manually set line delay in nanoseconds. Skip the line delay measure.',  type=float)
@@ -103,20 +102,17 @@ if __name__ == "__main__":
         u.print_debug("Setting maximum initial baseband scan frequency to %.2f MHz"%(f1))
     else:
         f1 = args.f1
-
-    if args.rxgain is None:
-        rx_gains = [0,]
-    else:
-        rx_gains = [int(float(a)) for a in args.rxgain]
-
     # Data acquisition
-    for g in gains:
-        print("Scanning with tx gain %d dB" % g)
-        for rxg in rx_gains:
-            print("Scanning with rx gain %d dB" % rxg)
+    # voltages = np.arange(1,11)/5.
+    voltages = [1.2,1.3,1.32,1.34,1.35,1.355,1.36,1.365,1.37,1.40,1.405,1.41,1.415,1.42,1.425,1.43,1.44]
+    for V in voltages:
+        cmd =  "lxi scpi --address 10.11.9.230 \"C1:BSWV OFST,%.3f\"" % V
+        os.system(cmd)
+        for g in gains:
             for f in frequencies:
-                print("Scanning with freq %.1f MHz" % f)
+                custom_name = "USRP_VNA_%ddB_%dmV" % (g,V*1000)
                 x = run(
+                        custom_name = custom_name,
                         gain = g,
                         iter = int(args.iter),
                         rate = args.rate*1e6,
@@ -127,10 +123,29 @@ if __name__ == "__main__":
                         lapse = args.time,
                         points = args.points,
                         ntones = ntones,
-                        rxgain = rxg,
                         delay_duration = args.delay_duration,
                         delay_over = args.delay_over
                     )
+                cmd =  "lxi scpi --address 10.11.9.230 \"C1:BSWV OFST,0.0\""
+                os.system(cmd)
+                x = run(
+                        custom_name = custom_name+"_no_bias",
+                        gain = g,
+                        iter = int(args.iter),
+                        rate = args.rate*1e6,
+                        freq = f*1e6,
+                        front_end = args.frontend,
+                        f0 = f0*1e6,
+                        f1 = f1*1e6,
+                        lapse = args.time,
+                        points = args.points,
+                        ntones = ntones,
+                        delay_duration = args.delay_duration/2.,
+                        delay_over = args.delay_over
+                    )
+
+        u.print_debug("Cooling down for 60 sec")
+        time.sleep(60)
 
     u.Disconnect()
     # Data analysis and plotting will be in an other python script

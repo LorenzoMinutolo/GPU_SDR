@@ -32,4 +32,4 @@ if __name__ == "__main__":
     files = glob.glob("USRP_Noise*.h5")
     latest_file = [x.split(".")[0] for x in (sorted(files, key=os.path.getctime))][0]
 
-    u.diagnostic_VNA_noise(latest_file, points = None, VNA_file = args.VNA, ant = "A_RX2", backend = args.backend)
+    u.diagnostic_VNA_noise(latest_file, points = 1000, VNA_file = args.VNA, ant = "A_RX2", backend = args.backend)
