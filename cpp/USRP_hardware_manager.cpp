@@ -101,7 +101,7 @@ hardware_manager::hardware_manager(server_settings* settings, bool sw_loop_init,
         this_usrp_number = usrp_number;
 
         //recursively look for usrps
-				
+				hint["addr"] = "192.168.30.2";
         dev_addrs = uhd::device::find(hint);
         std::cout<<"Looking for USRP device number "<< usrp_number << " .." <<std::flush;
         while(dev_addrs.size()< usrp_number + 1){

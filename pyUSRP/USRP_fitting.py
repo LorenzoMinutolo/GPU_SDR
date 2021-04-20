@@ -191,7 +191,7 @@ def do_fit(freq, re, im, p0=None):
         D = 0  # m/(2.*np.pi)
 
         fwmh = 0.05#FWMH(freq, phase) / 1e6
-        Qr = 1000# * f0 / fwmh
+        Qr = 3000# * f0 / fwmh
         Qe_re = Qr * 2
         Qe_im = 0
         dQe = 1. / (1.j * Qe_im + Qe_re)
@@ -578,6 +578,7 @@ def initialize_peaks(filename, N_peaks = 1, smoothing = None, peak_width = 90e3,
             Qr = 0
             depth = 0
             a = np.inf
+            f0 = 0
 
         #####################################
         # CONDITIONS FOR ACCEPTING THE INIT #

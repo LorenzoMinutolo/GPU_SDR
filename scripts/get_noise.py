@@ -12,7 +12,7 @@ except ImportError:
 
 import argparse
 
-def run(rate,freq,front_end, tones, lapse, decimation, gain, vna, mode, pf, trigger, amplitudes, shared_LO):
+def run(rate,freq,front_end, tones, lapse, decimation, gain, vna, mode, pf, trigger, amplitudes, shared_LO, rxgain):
 
     if trigger is not None:
         try:
@@ -26,10 +26,12 @@ def run(rate,freq,front_end, tones, lapse, decimation, gain, vna, mode, pf, trig
 
     if shared_LO is None:
         shared_LO = False
+    if rxgain is None:
+        rxgain = 0
     #trigger = u.trigger_template(rate = rate/decimation)
     noise_filename = u.get_tones_noise(tones, measure_t = lapse, rate = rate, decimation = decimation, amplitudes = amplitudes,
                               RF = freq, output_filename = None, Front_end = front_end,Device = None, delay = None,
-                              pf_average = pf, tx_gain = gain, mode = mode, trigger = trigger, shared_lo = shared_LO)
+                              pf_average = pf, tx_gain = gain, mode = mode, trigger = trigger, shared_lo = shared_LO, rx_gain = rxgain)
     if vna is not None:
         u.copy_resonator_group(vna, noise_filename)
 
@@ -42,7 +44,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--folder', '-fn', help='Name of the folder in which the data will be stored. Move to this folder before everything', type=str, default = "data")
     parser.add_argument('--freq', '-f', help='LO frequency in MHz', type=float, default= 300)
-    parser.add_argument('--gain', '-g', help='TX noise', type=int, default= 0)
+    parser.add_argument('--gain', '-g', help='TX gain', type=int, default= 0)
+    parser.add_argument('--rxgain', '-rxg', help='RX gain', type=int, default= 0)
     parser.add_argument('--rate', '-r', help='Sampling frequency in Msps', type=float, default = 100)
     parser.add_argument('--frontend', '-rf', help='front-end character: A or B', type=str, default="A")
     parser.add_argument('--tones','-T', nargs='+', help='Tones in MHz as a list i.e. -T 1 2 3')
@@ -122,6 +125,6 @@ if __name__ == "__main__":
     f = run(rate = args.rate*1e6, freq = rf_freq, front_end = args.frontend,
             tones = np.asarray(tones), lapse = args.time, decimation = args.decimation,
             gain = args.gain, vna= args.VNA, mode = args.mode, pf = args.pf, trigger = args.trigger, amplitudes=amplitudes,
-            shared_LO = args.shared_lo)
+            shared_LO = args.shared_lo, rxgain = args.rxgain)
 
     # Data analysis and plotting will be in an other python script

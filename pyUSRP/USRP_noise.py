@@ -385,7 +385,7 @@ def dual_get_noise(tones_A, tones_B, measure_t, rate, decimation = None, amplitu
     return output_filename
 
 def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None, RF = None, tx_gain = 0, output_filename = None, Front_end = None,
-              Device = None, delay = None, pf_average = 4, mode = "DIRECT", trigger = None, repeat_measure = False, subfolder = None, shared_lo = False, **kwargs):
+              Device = None, delay = None, pf_average = 4, mode = "DIRECT", trigger = None, repeat_measure = False, subfolder = None, shared_lo = False, rx_gain = 0, **kwargs):
     '''
     Perform a noise acquisition using fixed tone technique.
 
@@ -396,6 +396,7 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
         - amplitudes: a list of linear power to use with each tone. Must be the same length of tones arg; will be normalized. Default is equally splitted power.
         - RF: central up/down mixing frequency. Default is deducted by other arguments.
         - tx_gain: gain to use in the transmission side.
+        - rx_gain: gain to use in the receiver side.
         - output_filename: eventual filename. default is datetime.
         - Front_end: the front end to be used on the USRP. default is A.
         - Device: the on-server device number to use. default is 0.
@@ -586,7 +587,7 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
         noise_command.set(RX_frontend, "mode", "RX")
         noise_command.set(RX_frontend, 'tuning_mode', rx_tuning_mode)
         noise_command.set(RX_frontend, "buffer_len", buffer_len)
-        noise_command.set(RX_frontend, "gain", 0)
+        noise_command.set(RX_frontend, "gain", rx_gain)
         noise_command.set(RX_frontend, "delay", 1 + delay)
         noise_command.set(RX_frontend, "samples", number_of_samples)
         noise_command.set(RX_frontend, "rate", rate)
@@ -642,7 +643,7 @@ def get_tones_noise(tones, measure_t, rate, decimation = None, amplitudes = None
         noise_command.set(RX_frontend, "mode", "RX")
         noise_command.set(RX_frontend, 'tuning_mode', rx_tuning_mode)
         noise_command.set(RX_frontend, "buffer_len", buffer_len)
-        noise_command.set(RX_frontend, "gain", 0)
+        noise_command.set(RX_frontend, "gain", rx_gain)
         noise_command.set(RX_frontend, "delay", 1 + delay)
         noise_command.set(RX_frontend, "samples", number_of_samples)
         noise_command.set(RX_frontend, "rate", rate)
@@ -832,7 +833,7 @@ def calculate_noise(filename, welch=None, dbc=False, rotate=True, usrp_number=0,
     if verbose: print_debug("Calculating spectra...")
 
 
-    Results = Parallel(n_jobs=min(N_CORES,3), verbose=1, backend=parallel_backend)(
+    Results = Parallel(n_jobs=max(N_CORES,3), verbose=1, backend=parallel_backend)(
         delayed(spec_from_samples)(
             i, sampling_rate=sampling_rate, welch=welch, dbc=dbc, rotate=rotate, clip_samples = clip_samples,
             verbose=verbose
@@ -1921,7 +1922,7 @@ def calculate_NEF_spectra(filename, welch = 1, clip = 0.1, verbose = True, usrp_
 
     clip = clip * sampling_rate
 
-    Results = Parallel(n_jobs=min(N_CORES,3), verbose=1, backend=parallel_backend)(
+    Results = Parallel(n_jobs=max(N_CORES,3), verbose=1, backend=parallel_backend)(
         delayed(NEF_spectra_helper)(
             frequency_timestream = freq_ts[i],
             quality_timestream = qr_ts[i],
